@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Heather where
+module Main where
 
 import Data.Aeson
 import Data.Text
@@ -8,6 +8,9 @@ import Control.Applicative
 import Control.Monad
 import qualified Data.ByteString.Lazy as B
 import Network.HTTP.Conduit (simpleHttp)
+
+-- Set your zipCode code here!
+zipCode = "94305"
 
 -- Latitude / Longitude coordinates
 data Coord =
@@ -29,7 +32,7 @@ instance ToJSON Coord where
 -- Weather
 data Weather =
   Weather { id :: Int
-          , main :: Text
+          , weather :: Text
           , description :: Text
           , icon :: Text } deriving (Show)
 
@@ -58,9 +61,18 @@ instance FromJSON Main where
     (w >>= (.: "temp_max"))
       where w = (v .: "main")
 
-url = "http://api.openweathermap.org/data/2.5/weather?q=94305&units=imperial" :: String
+url = "http://api.openweathermap.org/data/2.5/weather?q=" ++ zipCode ++ "&units=imperial"
 response = simpleHttp url
 
 getCoord = eitherDecode <$> response :: IO (Either String Coord)
 getWeather = eitherDecode <$> response :: IO (Either String Weather)
 getMain = eitherDecode <$> response :: IO (Either String Main)
+
+parseTemp :: Main -> Float
+parseTemp (Main t _ _ _ _) = t
+
+main = do
+  result <- getMain
+  case result of
+    Left ex -> putStrLn $ "Caught exception: " ++ show ex
+    Right val -> putStrLn $ "The current temperature is " ++ show (parseTemp val) ++ " deg. F"
