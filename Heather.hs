@@ -7,9 +7,8 @@ import Control.Applicative
 import Control.Monad
 import qualified Data.ByteString.Lazy as B
 import Network.HTTP.Conduit (simpleHttp)
-import Data.Time.Format     (parseTime)
-import Data.Time.Clock      (UTCTime)
-import System.Locale        (defaultTimeLocale)
+import Data.Time.Clock (UTCTime)
+import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 
 {-
  - Loads data using the OpenWeatherMap API (http://openweathermap.org/api)
@@ -34,7 +33,7 @@ data Weather =
           , clouds :: Float                 -- %
           , category :: Text                -- short description
           , description :: Text             -- long description
-          , time :: Maybe UTCTime           -- timestamp
+          , time :: UTCTime                 -- POSIX timestamp
           , icon :: Text } deriving (Show)
 
 -- container for city + a list of weather data
@@ -49,13 +48,13 @@ instance FromJSON Weather where
     (clouds >>= (.: "all")) <*>
     (desc >>= (.: "main")) <*>
     (desc >>= (.: "description")) <*>
-    liftM readTime (o .: "dt_txt") <*>
+    liftM parseTime (o .: "dt") <*>
     (desc >>= (.: "icon"))
       where main = (o .: "main")
             wind = (o .: "wind")
             clouds = (o .: "clouds")
             desc = (!! 0) <$> (o .: "weather")
-            readTime = parseTime defaultTimeLocale "%Y-%m-%d %H:%M:%S"
+            parseTime = posixSecondsToUTCTime . fromIntegral :: Int -> UTCTime
 
 instance FromJSON Forecast where
   parseJSON (Object o) = do
@@ -64,9 +63,8 @@ instance FromJSON Forecast where
     return $ Forecast city weather
   parseJSON _ = mzero
 
-url :: String -> String
-url z = "http://api.openweathermap.org/data/2.5/forecast?q=" ++ z ++ "&units=imperial"
+url :: String -> String -> String
+url t z = "http://api.openweathermap.org/data/2.5/" ++ t ++ "?q=" ++ z ++ "&units=imperial"
 
-response = simpleHttp . url
-
-getCity z = eitherDecode <$> (response z) :: IO (Either String Forecast)
+getForecast z = eitherDecode <$> ((simpleHttp . (url "forecast")) z) :: IO (Either String Forecast)
+getCurrent z = eitherDecode <$> ((simpleHttp . (url "weather")) z) :: IO (Either String Weather)
