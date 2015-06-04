@@ -1,6 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-
-module Main where
+module Heather where
 
 import Data.Aeson
 import Data.Text
@@ -8,71 +7,66 @@ import Control.Applicative
 import Control.Monad
 import qualified Data.ByteString.Lazy as B
 import Network.HTTP.Conduit (simpleHttp)
+import Data.Time.Format     (parseTime)
+import Data.Time.Clock      (UTCTime)
+import System.Locale        (defaultTimeLocale)
 
--- Set your zipCode code here!
-zipCode = "94305"
+{-
+ - Loads data using the OpenWeatherMap API (http://openweathermap.org/api)
+-}
 
--- Latitude / Longitude coordinates
-data Coord =
-  Coord { latitude :: Float
-        , longitude :: Float } deriving (Show)
+-- city data type
+data City = City { name :: String
+                 , country :: String } deriving Show
 
-instance FromJSON Coord where
-  parseJSON (Object v) = Coord <$>
-    (c >>= (.: "lat")) <*>
-    (c >>= (.: "lon"))
-      where c = (v .: "coord")
+instance FromJSON City where
+  parseJSON (Object o) = City <$>
+    o .: "name" <*>
+    o .: "country"
+  parseJSON _ = mzero
 
-instance ToJSON Coord where
-  toJSON (Coord latitude longitude) =
-    object [ "lat" .= latitude
-           , "lon" .= longitude
-           ]
-
--- Weather
+-- sample of weather data
 data Weather =
-  Weather { id :: Int
-          , weather :: Text
-          , description :: Text
+  Weather { temperature :: Float            -- degrees Farenheit
+          , pressure :: Float               -- hPa
+          , humidity :: Float               -- %
+          , windspeed :: Float              -- miles/hour
+          , clouds :: Float                 -- %
+          , category :: Text                -- short description
+          , description :: Text             -- long description
+          , time :: Maybe UTCTime           -- timestamp
           , icon :: Text } deriving (Show)
 
+-- container for city + a list of weather data
+data Forecast = Forecast { city :: City, weather :: [Weather] } deriving Show
+
 instance FromJSON Weather where
-  parseJSON (Object v) = Weather <$>
-    (w >>= (.: "id")) <*>
-    (w >>= (.: "main")) <*>
-    (w >>= (.: "description")) <*>
-    (w >>= (.: "icon"))
-      where w = (v .: "weather")
+  parseJSON (Object o) = Weather <$>
+    (main >>= (.: "temp")) <*>
+    (main >>= (.: "pressure")) <*>
+    (main >>= (.: "humidity")) <*>
+    (wind >>= (.: "speed")) <*>
+    (clouds >>= (.: "all")) <*>
+    (desc >>= (.: "main")) <*>
+    (desc >>= (.: "description")) <*>
+    liftM readTime (o .: "dt_txt") <*>
+    (desc >>= (.: "icon"))
+      where main = (o .: "main")
+            wind = (o .: "wind")
+            clouds = (o .: "clouds")
+            desc = (!! 0) <$> (o .: "weather")
+            readTime = parseTime defaultTimeLocale "%Y-%m-%d %H:%M:%S"
 
--- Main
-data Main =
-  Main { temperature :: Float
-       , pressure :: Float
-       , humidity :: Float
-       , low :: Float
-       , high :: Float } deriving (Show)
+instance FromJSON Forecast where
+  parseJSON (Object o) = do
+    city <- parseJSON =<< (o .: "city")
+    weather <- parseJSON =<< (o .: "list")
+    return $ Forecast city weather
+  parseJSON _ = mzero
 
-instance FromJSON Main where
-  parseJSON (Object v) = Main <$>
-    (w >>= (.: "temp")) <*>
-    (w >>= (.: "pressure")) <*>
-    (w >>= (.: "humidity")) <*>
-    (w >>= (.: "temp_min")) <*>
-    (w >>= (.: "temp_max"))
-      where w = (v .: "main")
+url :: String -> String
+url z = "http://api.openweathermap.org/data/2.5/forecast?q=" ++ z ++ "&units=imperial"
 
-url = "http://api.openweathermap.org/data/2.5/weather?q=" ++ zipCode ++ "&units=imperial"
-response = simpleHttp url
+response = simpleHttp . url
 
-getCoord = eitherDecode <$> response :: IO (Either String Coord)
-getWeather = eitherDecode <$> response :: IO (Either String Weather)
-getMain = eitherDecode <$> response :: IO (Either String Main)
-
-parseTemp :: Main -> Float
-parseTemp (Main t _ _ _ _) = t
-
-main = do
-  result <- getMain
-  case result of
-    Left ex -> putStrLn $ "Caught exception: " ++ show ex
-    Right val -> putStrLn $ "The current temperature is " ++ show (parseTemp val) ++ " deg. F"
+getCity z = eitherDecode <$> (response z) :: IO (Either String Forecast)
