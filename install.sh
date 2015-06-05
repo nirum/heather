@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # compile
-ghc -o heather Heather.hs
+ghc -o heather main.hs
 
-# copy
-echo "Copying to /usr/local/bin"
+# move
+echo "Moving heather to /usr/local/bin"
 mv -f heather /usr/local/bin
