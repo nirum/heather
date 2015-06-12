@@ -12,9 +12,6 @@ myParser = MyArg
   `parsedBy` optPos "" "query" `Descr` "The desired query, either `current` for the current forecast or `forecast` for a list of predicted temperatures over the next three days"
   `andBy` optPos 94305 "zipcode" `Descr` "A 5-digit zip code (Default: 94305)"
 
-getTemp :: Weather -> Float
-getTemp (Weather t _ _ _ _ _ _ _ _) = t
-
 app :: MyArg -> IO ()
 app (MyArg q z)
 
@@ -24,14 +21,14 @@ app (MyArg q z)
       result <- getCurrent z -- get the current weather
       case result of
         Left ex -> print $ "Caught exception: " ++ show ex
-        Right val -> print $ getTemp val
+        Right val -> print $ temperature val
 
   | q == "forecast" = do
       result <- getForecast z -- get the current forecast
       case result of
         Left ex -> print $ "Caught exception: " ++ show ex
         Right val -> putStrLn $ collect val
-          where collect (Forecast _ ws) = unwords $ map (show . getTemp) ws
+          where collect (Forecast _ ws) = unwords $ map (show . temperature) ws
 
   | otherwise = error "Invalid argument"
 
