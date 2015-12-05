@@ -3,7 +3,9 @@
 :partly_sunny: A haskell command-line app for fetching the weather forecast!
 
 ## Installation
-Must have `ghc` installed. Running the installation script `./install.sh` (on Unix systems) will place the compiled executable in `/usr/local/bin`
+Must have `ghc` installed. To install, first get an API key from
+[openweathermap](http://openweathermap.org) and place it at the top of `Heather.hs` (on line 14),
+then simply run `make` to install.
 
 ## Usage
 To get the current weather (for zipcode 94305)

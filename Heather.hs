@@ -9,10 +9,14 @@ import Network.HTTP.Conduit (simpleHttp)
 import Data.Time.Clock (UTCTime)
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 
--- the OpenWeatherMap API url
-url :: (Show a) => String -> a -> String
-url q z = "http://api.openweathermap.org/data/2.5/" ++ q ++ "?q=" ++ (show z) ++ "&units=imperial"
+-- put your API key here
+apikey :: String
+apikey = "API KEY GOES HERE"
 
+-- the OpenWeatherMap API url
+url :: (Show a) => String -> String -> a -> String
+url q appid z = "http://api.openweathermap.org/data/2.5/" ++ q ++ "?q=" ++ (show z) ++ "&units=imperial&appid=" ++ appid
+ 
 -- city datatype
 data City = City { name :: String
                  , country :: String } deriving Show
@@ -67,7 +71,7 @@ instance FromJSON Forecast where
 
 -- main functions for querying the API and parsing the JSON response
 getForecast :: (Show a) => a -> IO (Either String Forecast)
-getForecast z = eitherDecode <$> ((simpleHttp . (url "forecast")) z)
+getForecast z = eitherDecode <$> ((simpleHttp . (url "forecast" apikey)) z)
 
 getCurrent :: (Show a) => a -> IO (Either String Weather)
-getCurrent z = eitherDecode <$> ((simpleHttp . (url "weather")) z)
+getCurrent z = eitherDecode <$> ((simpleHttp . (url "weather" apikey)) z)

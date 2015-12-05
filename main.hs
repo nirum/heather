@@ -20,13 +20,13 @@ app (MyArg q z)
   | q == "current" = do
       result <- getCurrent z -- get the current weather
       case result of
-        Left ex -> print $ "Caught exception: " ++ show ex
+        Left ex -> print $ "\nCaught exception!\n\n" ++ show ex
         Right val -> print $ temperature val
 
   | q == "forecast" = do
       result <- getForecast z -- get the current forecast
       case result of
-        Left ex -> print $ "Caught exception: " ++ show ex
+        Left ex -> print $ "\nCaught exception!\n\n" ++ show ex
         Right val -> putStrLn $ collect val
           where collect (Forecast _ ws) = unwords $ map (show . temperature) ws
 
